@@ -23,8 +23,13 @@ export default function Navbar() {
     const navbarNavRef = useRef(null);
 
     const handleTrackOrder = useCallback(() => {
-        router.push('/order-tracking');
-    }, [router]);
+        if (lastOrder && lastOrder.orderNumber && lastOrder.phone) {
+            try { sessionStorage.setItem(`bb_phone_${lastOrder.orderNumber}`, lastOrder.phone); } catch (e) { /* ignore */ }
+            router.push(`/order-tracking?order=${encodeURIComponent(lastOrder.orderNumber)}`);
+        } else {
+            router.push('/order-tracking');
+        }
+    }, [router, lastOrder]);
 
     /* ── Business hours banner ── */
     useEffect(() => {
