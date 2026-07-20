@@ -1377,6 +1377,37 @@
       white-space: nowrap; z-index: 10; pointer-events: none;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
+
+    .payment-failed { background: #FEE2E2; color: #DC2626; }
+
+    /* ── STAFF LIST ── */
+    .staff-row {
+      display: flex; align-items: center; gap: 0.9rem;
+      padding: 0.85rem 1.5rem; border-bottom: 1px solid var(--border);
+    }
+    .staff-row:last-child { border-bottom: none; }
+    .staff-row-info { flex: 1; }
+    .staff-row-name { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+    .staff-row-pin { font-size: 0.78rem; color: var(--text-light); margin-top: 0.15rem; }
+
+    /* ── ANALYTICS: STATUS BREAKDOWN / TOP ITEMS ── */
+    .status-breakdown-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+    .status-breakdown-label { width: 110px; font-size: 0.8rem; color: var(--text-medium); flex-shrink: 0; }
+    .status-breakdown-track { flex: 1; height: 10px; background: var(--bg); border-radius: 6px; overflow: hidden; }
+    .status-breakdown-fill { height: 100%; border-radius: 6px; transition: width 0.3s ease; }
+    .status-breakdown-count { width: 28px; text-align: right; font-size: 0.82rem; font-weight: 600; color: var(--text-dark); }
+
+    .top-item-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+    }
+    .top-item-row:last-child { border-bottom: none; }
+    .top-item-rank { width: 24px; font-weight: 700; color: var(--text-light); font-size: 0.8rem; }
+    .top-item-name { flex: 1; font-size: 0.85rem; color: var(--text-dark); font-weight: 500; }
+    .top-item-qty { font-size: 0.8rem; color: var(--text-light); }
   </style>
 </head>
 <body>
@@ -1825,6 +1856,7 @@
             <option value="frappes">Frappes</option>
             <option value="summer-coolers">Summer Coolers</option>
             <option value="desserts">Desserts</option>
+            <option value="sandwiches">Sandwiches</option>
           </select>
         </div>
       </div>
