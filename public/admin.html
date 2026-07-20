@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal | Brew Beans</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --primary:       #0F3D2E;
+      --primary-dark:  #0A2E22;
+      --primary-light: #1A5C45;
+      --secondary:     #2E8B57;
+      --secondary-lt:  #3DAF6E;
+      --border:        #E5E7EB;
+      --text-dark:     #1A1A1A;
+      --text-mid:      #4A4A4A;
+      --text-light:    #6C757D;
+      --radius:        14px;
+      --ease:          cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 55%, var(--primary-light) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      overflow: hidden;
+    }
+
+    /* ── Animated background orbs ── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      animation: float linear infinite;
+      pointer-events: none;
+    }
+    .orb-1 { width: 500px; height: 500px; top: -180px; right: -180px; animation-duration: 18s; }
+    .orb-2 { width: 350px; height: 350px; bottom: -120px; left: -120px; animation-duration: 24s; animation-direction: reverse; }
+    .orb-3 { width: 200px; height: 200px; top: 40%; left: 5%; animation-duration: 14s; opacity: 0.5; }
+    .orb-4 { width: 120px; height: 120px; bottom: 20%; right: 8%; animation-duration: 20s; opacity: 0.5; }
+
+    @keyframes float {
+      0%   { transform: translate(0, 0) rotate(0deg); }
+      33%  { transform: translate(20px, -15px) rotate(120deg); }
+      66%  { transform: translate(-15px, 10px) rotate(240deg); }
+      100% { transform: translate(0, 0) rotate(360deg); }
+    }
+
+    /* ── Card ── */
+    .login-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 32px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      animation: cardIn 0.7s var(--ease) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(40px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── Header ── */
+    .login-header {
+      background: linear-gradient(150deg, var(--primary) 0%, var(--primary-light) 100%);
+      padding: 2.5rem 2rem 3rem;
+      text-align: center;
+      position: relative;
+    }
+
+    /* Curved bottom edge */
+    .login-header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0; right: 0;
+      height: 40px;
+      background: white;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    }
+
+    .logo-wrap {
+      animation: fadeDown 0.5s var(--ease) 0.2s both;
+    }
+    .logo-wrap img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+      animation: logoBob 3s ease-in-out infinite;
+    }
+    @keyframes logoBob {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-5px); }
+    }
+
+    .badge-admin {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      color: rgba(255,255,255,0.9);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      margin: 0.75rem 0 0.6rem;
+      animation: fadeDown 0.5s var(--ease) 0.35s both;
+    }
+
+    .login-header h1 {
+      font-family: 'Playfair Display', serif;
+      color: white;
+      font-size: 1.7rem;
+      animation: fadeDown 0.5s var(--ease) 0.45s both;
+    }
+
+    .login-header p {
+      color: rgba(255,255,255,0.65);
+      font-size: 0.82rem;
+      margin-top: 0.2rem;
+      animation: fadeDown 0.5s var(--ease) 0.5s both;
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Body ── */
+    .login-body {
+      padding: 1.5rem 2rem 1.75rem;
+    }
+
+    .alert-error {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #DC2626;
+      border-radius: 10px;
+      padding: 0.7rem 1rem;
+      font-size: 0.82rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      animation: shake 0.4s var(--ease);
+    }
+    .alert-error.show { display: flex; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    /* Floating label group */
+    .form-group {
+      margin-bottom: 1.25rem;
+      animation: fadeUp 0.5s var(--ease) both;
+    }
+    .form-group:nth-child(1) { animation-delay: 0.55s; }
+    .form-group:nth-child(2) { animation-delay: 0.65s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-mid);
+      margin-bottom: 0.45rem;
+      transition: color 0.2s;
+    }
+    .form-group:focus-within label { color: var(--secondary); }
+
+    .input-wrapper {
+      position: relative;
+    }
+    .input-wrapper .icon-left {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 0.95rem;
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+    .input-wrapper:focus-within .icon-left { color: var(--secondary); }
+
+    .form-control {
+      width: 100%;
+      padding: 0.78rem 1rem 0.78rem 2.6rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.88rem;
+      color: var(--text-dark);
+      background: #F9FAFB;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .form-control:focus {
+      border-color: var(--secondary);
+      background: white;
+      box-shadow: 0 0 0 3.5px rgba(46,139,87,0.12);
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 0.95rem;
+      transition: color 0.2s;
+      padding: 2px;
+    }
+    .toggle-password:hover { color: var(--secondary); }
+
+    /* ── Sign In button ── */
+    .btn-login {
+      width: 100%;
+      padding: 0.88rem;
+      background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-lt) 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.93rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+      animation: fadeUp 0.5s var(--ease) 0.75s both;
+    }
+
+    .btn-login::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(46,139,87,0.4); }
+    .btn-login:hover::before { opacity: 1; }
+    .btn-login:active { transform: translateY(0); box-shadow: none; }
+    .btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+    }
+    .btn-login.loading .spinner { display: block; }
+    .btn-login.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ── */
+    .login-footer {
+      text-align: center;
+      padding: 0.9rem 2rem 1.4rem;
+      border-top: 1px solid var(--border);
+      animation: fadeUp 0.5s var(--ease) 0.85s both;
+    }
+    .login-footer a {
+      color: var(--secondary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.2s, gap 0.2s;
+    }
+    .login-footer a:hover { color: var(--primary); gap: 0.55rem; }
+  </style>
+</head>
+<body>
+
+  <!-- Background orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="orb orb-4"></div>
+
+  <div class="login-card">
+    <div class="login-header">
+      <div class="logo-wrap">
+        <img src="img/brewbeans-logo.png" alt="Brew Beans" onerror="this.style.display='none'">
+      </div>
+      <div class="badge-admin">Admin Portal</div>
+      <h1>Brew Beans</h1>
+      <p>Sign in to manage your coffee shop</p>
+    </div>
+
+    <div class="login-body">
+      <div class="alert-error" id="errorAlert">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <span id="errorMsg">Invalid email or password.</span>
+      </div>
+
+      <form id="loginForm" autocomplete="on">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <div class="input-wrapper">
+            <i class="bi bi-envelope icon-left"></i>
+            <input type="email" id="email" class="form-control" placeholder="admin@brewbeans.pk" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <i class="bi bi-lock icon-left"></i>
+            <input type="password" id="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
+            <button type="button" class="toggle-password" id="togglePassword">
+              <i class="bi bi-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">
+          <div class="spinner"></div>
+          <span class="btn-text"><i class="bi bi-shield-lock"></i> Sign In</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="login-footer">
+      <a href="index.html"><i class="bi bi-arrow-left"></i> Back to Website</a>
+    </div>
+  </div>
+
+  <script src="js/supabase-config.js"></script>
+  <script>
+    const loginForm      = document.getElementById('loginForm');
+    const loginBtn       = document.getElementById('loginBtn');
+    const errorAlert     = document.getElementById('errorAlert');
+    const errorMsg       = document.getElementById('errorMsg');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput  = document.getElementById('password');
+    const eyeIcon        = document.getElementById('eyeIcon');
+
+    supabaseClient.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = 'admin-dashboard.html';
+    });
+
+    togglePassword.addEventListener('click', () => {
+      const isPass = passwordInput.type === 'password';
+      passwordInput.type = isPass ? 'text' : 'password';
+      eyeIcon.className  = isPass ? 'bi bi-eye-slash' : 'bi bi-eye';
+    });
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      loginBtn.classList.add('loading');
+      loginBtn.disabled = true;
+      errorAlert.classList.remove('show');
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        errorMsg.textContent = error.message === 'Invalid login credentials'
+          ? 'Invalid email or password. Please try again.'
+          : error.message;
+        errorAlert.classList.add('show');
+        loginBtn.classList.remove('loading');
+        loginBtn.disabled = false;
+      } else {
+        window.location.href = 'admin-dashboard.html';
+      }
+    });
+  </script>
+</body>
+</html>
