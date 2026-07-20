@@ -1,54 +1,16 @@
 'use client';
 import { useApp } from '@/context/AppContext';
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 
 const HOT_MEDIA_CATS = ['hot-coffee'];
 const COLD_MEDIA_CATS = ['cold-coffee', 'frappes', 'summer-coolers'];
 
-const LOCAL_ADDON_CATALOG = {
-    'hot-coffee': [
-        { id: 'temp', name: 'Temperature Preference', required: true, multi: false, options: [
-            { name: 'Extra Hot', price: 0 }, { name: 'Hot', price: 0 }, { name: 'Warm', price: 0 }, { name: 'Room Temperature', price: 0 }
-        ]},
-        { id: 'size', name: 'Cup Size', required: false, multi: false, options: [
-            { name: 'Small', price: 0 }, { name: 'Medium', price: 0 }, { name: 'Large', price: 0 }
-        ]},
-        { id: 'milk', name: 'Milk Options', required: false, multi: false, options: [
-            { name: 'Full Cream', price: 0 }, { name: 'Low Fat', price: 0 }, { name: 'Oat Milk', price: 70 },
-            { name: 'Almond Milk', price: 90 }, { name: 'Soy Milk', price: 80 }
-        ]},
-        { id: 'blend', name: 'Choose Your Blend', required: false, multi: false, options: [
-            { name: 'House Blend', price: 0 }, { name: 'Ethiopian Single Origin', price: 150 }, { name: 'Colombian Supremo', price: 120 }
-        ]},
-        { id: 'sweetness', name: 'Sweetness', required: false, multi: false, options: [
-            { name: 'No Sugar', price: 0 }, { name: 'Less Sugar', price: 0 }, { name: 'Regular', price: 0 }, { name: 'Extra Sweet', price: 0 }
-        ]},
-        { id: 'extras', name: 'Add Extras', required: false, multi: true, options: [
-            { name: 'Extra Espresso Shot', price: 60 }, { name: 'Vanilla Syrup', price: 50 }, { name: 'Caramel Syrup', price: 50 },
-            { name: 'Hazelnut Syrup', price: 50 }, { name: 'Chocolate Syrup', price: 50 }, { name: 'Whipped Cream', price: 50 },
-            { name: 'Cinnamon Powder', price: 30 }, { name: 'Chocolate Powder', price: 40 }, { name: 'Marshmallows', price: 70 }
-        ]}
-    ],
-    'cold-coffee': [
-        { id: 'temp', name: 'Temperature Preference', required: true, multi: false, options: [
-            { name: 'Extra Cold', price: 0 }, { name: 'Cold', price: 0 }, { name: 'Room Temperature', price: 0 }
-        ]},
-        { id: 'blend', name: 'Choose Your Blend', required: false, multi: false, options: [
-            { name: 'House Blend', price: 0 }, { name: 'Ethiopian Single Origin', price: 150 }, { name: 'Colombian Supremo', price: 120 }
-        ]},
-        { id: 'extras', name: 'Add Extras', required: false, multi: true, options: [
-            { name: 'Extra Shot', price: 60 }, { name: 'Caramel Syrup', price: 50 }, { name: 'Hazelnut Syrup', price: 50 },
-            { name: 'Oat Milk', price: 70 }, { name: 'Whipped Cream', price: 50 }, { name: 'Chocolate Powder', price: 40 }
-        ]}
-    ]
-};
-LOCAL_ADDON_CATALOG.frappes = LOCAL_ADDON_CATALOG['cold-coffee'];
-LOCAL_ADDON_CATALOG['summer-coolers'] = LOCAL_ADDON_CATALOG['cold-coffee'];
-
-function addonOptionIcon(groupId, name) {
-    if (groupId !== 'temp' && groupId !== 'blend') return '';
+function addonOptionIcon(groupName, name) {
+    const g = groupName.toLowerCase();
+    if (g !== 'temperature' && g !== 'coffee blend') return '';
+    if (g === 'coffee blend') return 'bi-cup-hot';
     const n = name.toLowerCase();
-    if (groupId === 'blend') return 'bi-cup-hot';
     if (n.includes('cold') || n.includes('iced')) return 'bi-snow2';
     if (n.includes('hot')) return 'bi-fire';
     return 'bi-thermometer-half';
@@ -80,8 +42,10 @@ export default function AddonModal() {
     const imgRef = useRef(null);
     const animFrameRef = useRef(null);
     const priceAnimRef = useRef(null);
+    const addonCacheRef = useRef({});
 
-    const groups = currentAddonItem ? (LOCAL_ADDON_CATALOG[currentAddonItem.category] || []) : [];
+    const [groups, setGroups] = useState([]);
+    const [loadingAddons, setLoadingAddons] = useState(false);
     const isHot = currentAddonItem ? HOT_MEDIA_CATS.includes(currentAddonItem.category) : false;
     const isCold = currentAddonItem ? COLD_MEDIA_CATS.includes(currentAddonItem.category) : false;
 
@@ -120,15 +84,50 @@ export default function AddonModal() {
     }, [baseTotal]);
 
     useEffect(() => {
-        if (addonModalOpen && currentAddonItem) {
-            setSelectedOptions({});
-            setQuantity(1);
-            setSpecialInstructions('');
-            setAnimatingPrice(currentAddonItem.price);
-            animatedPriceRef.current = currentAddonItem.price;
-            setBreakdownExpanded(false);
-            setPriceExpanded(false);
+        if (!addonModalOpen || !currentAddonItem) return;
+
+        setSelectedOptions({});
+        setQuantity(1);
+        setSpecialInstructions('');
+        setAnimatingPrice(currentAddonItem.price);
+        animatedPriceRef.current = currentAddonItem.price;
+        setBreakdownExpanded(false);
+        setPriceExpanded(false);
+
+        const itemId = currentAddonItem.id;
+        const cached = addonCacheRef.current[itemId];
+        if (cached) {
+            setGroups(cached);
+            return;
         }
+
+        let cancelled = false;
+        setLoadingAddons(true);
+        setGroups([]);
+        supabase
+            .from('menu_item_addon_groups')
+            .select('addon_groups(id, name, is_required, max_selections, addons(name, price, is_available))')
+            .eq('menu_item_id', itemId)
+            .then(({ data, error }) => {
+                if (cancelled) return;
+                const resolved = error ? [] : (data || [])
+                    .map(row => row.addon_groups)
+                    .filter(Boolean)
+                    .map(g => ({
+                        id: g.id,
+                        name: g.name,
+                        required: g.is_required,
+                        multi: g.max_selections == null || g.max_selections > 1,
+                        options: (g.addons || [])
+                            .filter(a => a.is_available)
+                            .map(a => ({ name: a.name, price: Number(a.price) || 0 }))
+                    }))
+                    .filter(g => g.options.length > 0);
+                addonCacheRef.current[itemId] = resolved;
+                setGroups(resolved);
+                setLoadingAddons(false);
+            });
+        return () => { cancelled = true; };
     }, [addonModalOpen, currentAddonItem]);
 
     function handleOptionClick(groupId, optionName, isMulti) {
@@ -233,7 +232,12 @@ export default function AddonModal() {
                         <div className="addon-panel">
                             <div className="addon-panel-scroll">
                                 <div id="addonGroupsContainer">
-                                    {groups.length === 0 ? (
+                                    {loadingAddons ? (
+                                        <div className="addon-empty-state">
+                                            <i className="bi bi-arrow-repeat spin"></i>
+                                            <p>Loading options...</p>
+                                        </div>
+                                    ) : groups.length === 0 ? (
                                         <div className="addon-empty-state">
                                             <i className="bi bi-check2-circle"></i>
                                             <p>This item is ready to go — just pick your quantity below.</p>
@@ -249,7 +253,7 @@ export default function AddonModal() {
                                             </div>
                                             <div className={`addon-options${(selectedOptions[group.id] || []).length > 0 ? ' has-selection' : ''}`}>
                                                 {group.options.map(opt => {
-                                                    const icon = addonOptionIcon(group.id, opt.name);
+                                                    const icon = addonOptionIcon(group.name, opt.name);
                                                     const isSelected = (selectedOptions[group.id] || []).includes(opt.name);
                                                     return (
                                                         <div
